@@ -1,0 +1,20 @@
+{
+  "id": "mutilate-masterless",
+  "container": {
+    "docker": {
+      "image": "bplotka/mutilate-docker:masterless",
+          "network": "HOST",
+          "privileged": false,
+          "forcePullImage": true
+      },
+      "type": "DOCKER",
+      "volumes": []
+  },
+  "cmd": "./mutilate -v -s <memcached host> -M -T 72 -B -c 4 -t 600 -q 0",
+  "cpus": 10,
+  "mem": 8096,
+  "instances": 0,
+  "constraints": [
+      ["hostname", "UNLIKE", "<memcached host>"]
+  ]
+}
