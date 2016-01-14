@@ -10,8 +10,6 @@
 #include <unistd.h>
 
 #include <queue>
-#include <string>
-#include <vector>
 
 #include <event2/buffer.h>
 #include <event2/bufferevent.h>
@@ -31,12 +29,14 @@
 #ifndef HAVE_PTHREAD_BARRIER_INIT
 #include "barrier.h"
 #endif
-#include "cmdline.h"
-#include "Connection.h"
-#include "ConnectionOptions.h"
 #include "log.h"
 #include "mutilate.h"
 #include "util.h"
+#include "Connection.h"
+#include "ConnectionStats.h"
+
+// NOTE(bplotka): Including masterless code.
+#include "agent/masterless.hpp"
 
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 
@@ -49,15 +49,6 @@ char random_char[2 * 1024 * 1024];  // Buffer used to generate random values.
 vector<zmq::socket_t*> agent_sockets;
 zmq::context_t context(1);
 #endif
-
-struct thread_data {
-  const vector<string> *servers;
-  options_t *options;
-  bool master;  // Thread #0, not to be confused with agent master.
-#ifdef HAVE_LIBZMQ
-  zmq::socket_t *socket;
-#endif
-};
 
 // struct evdns_base *evdns;
 
@@ -449,8 +440,14 @@ int main(int argc, char **argv) {
 
   //  if ((evdns = evdns_base_new(base, 1)) == 0) DIE("evdns");
 
+  options_t options;
+  args_to_options(&options);
+
 #ifdef HAVE_LIBZMQ
-  if (args.agentmode_given) {
+  if (args.masterless_agentmode_given) {
+    MasterlessAgent().run(args, options);
+    return 0;
+  } else if (args.agentmode_given) {
     agent();
     return 0;
   } else if (args.agent_given) {
@@ -463,9 +460,6 @@ int main(int argc, char **argv) {
     }
   }
 #endif
-
-  options_t options;
-  args_to_options(&options);
 
   pthread_barrier_init(&barrier, NULL, options.threads);
 
@@ -612,7 +606,7 @@ int main(int argc, char **argv) {
            (double) stats.tx_bytes / 1024 / 1024 / (stats.stop - stats.start));
 
     if (args.save_given) {
-      printf("Saving latency samples to %s.\n", args.save_arg);
+      printf("Saving latency samples to %s.\n", args);
 
       FILE *file;
       if ((file = fopen(args.save_arg, "w")) == NULL)
@@ -889,6 +883,11 @@ void do_mutilate(const vector<string>& servers, options_t& options,
       if (master) V("Synchronized.");
     }
 #endif
+    if (args.masterless_agentmode_given) {
+      // Sync threads.
+      pthread_barrier_wait(&barrier);
+      if (master) V("Synchronized.");
+    }
 
     int old_time = options.time;
     //    options.time = 1;
@@ -974,6 +973,12 @@ void do_mutilate(const vector<string>& servers, options_t& options,
     if (master) V("Synchronized.");
   }
 #endif
+
+  if (args.masterless_agentmode_given) {
+    // Sync threads.
+    pthread_barrier_wait(&barrier);
+    if (master) V("Synchronized.");
+  }
 
   if (master && !args.scan_given && !args.search_given)
     V("started at %f", get_time());

@@ -1,9 +1,16 @@
-Mutilate [![Build Status](https://img.shields.io/travis/dterei/mutilate.svg?style=flat)](https://travis-ci.org/dterei/mutilate)
+Improved Mutilate
 ========
-
+ 
 Mutilate is a memcached load generator designed for high request
 rates, good tail-latency measurements, and realistic request stream
 generation.
+
+Improvements
+============
+
+1. Masterless mode.
+2. Sinusoidal type of stress [WIP]
+3. Storing latency of each request to InfluxDB [WIP]
 
 Requirements
 ============
@@ -183,6 +190,7 @@ Command-line Options
     
     Agent-mode options:
       -A, --agentmode               Run client in agent mode.
+      -M, --masterless_agentmode    Run client in masterless agent mode.
       -a, --agent=host              Enlist remote agent.
       -p, --agent_port=STRING       Agent port.  (default=`5556')
       -l, --lambda_mul=INT          Lambda multiplier.  Increases share of QPS for 
