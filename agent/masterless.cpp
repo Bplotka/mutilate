@@ -65,7 +65,9 @@ void* _mainThread(void *arg) {
 
   ConnectionStats *connectionStats = new ConnectionStats();
 
-  V("Thread: " + threadData->id + " starting mutilating");
+  std::string msg = "Thread: " + std::to_string(threadData->id) +
+                    " starting mutilate";
+  V(msg.c_str());
   // Use global func from mutilate.cc (!)
   do_mutilate(*threadData->servers, *threadData->options,
               *connectionStats, threadData->master
