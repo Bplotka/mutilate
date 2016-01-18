@@ -26,7 +26,7 @@ void MasterlessAgent::run(gengetopt_args_info _args, options_t _options) {
 
     // Lamda denom was initially sent by master.
     // In masterless mode we need to configure it manually.
-    _options.lambda_denom = _args.connections_arg;
+    _options.lambda_denom = _args.connections_arg * _options.threads;
 
     //?? V("AGENT SLEEPS"); sleep(1);
     _options.lambda =
@@ -52,15 +52,20 @@ void MasterlessAgent::run(gengetopt_args_info _args, options_t _options) {
     as.skips = stats.skips;
 
     V("Finished loop");
+
+//    V("Local QPS = %.1f (%d / %.1fs)",
+//      total / (stats.stop - stats.start),
+//      total, stats.stop - stats.start);
   }
 }
 
 
 void* _mainThread(void *arg) {
-  struct thread_data *threadData = (struct thread_data *) arg;
+  struct thread_data* threadData = (struct thread_data *) arg;
 
   ConnectionStats *connectionStats = new ConnectionStats();
 
+  V("Thread: " + threadData->id + " starting mutilating");
   // Use global func from mutilate.cc (!)
   do_mutilate(*threadData->servers, *threadData->options,
               *connectionStats, threadData->master
@@ -74,11 +79,8 @@ void* _mainThread(void *arg) {
 
 
 void MasterlessAgent::_run(
-    const vector<string>& _servers,
-    gengetopt_args_info _args,
-    options_t& _options,
-    ConnectionStats& _stats) {
-
+  const vector<string>& _servers, gengetopt_args_info _args,
+  options_t& _options, ConnectionStats& _stats) {
   if (_options.threads > 1) {
     pthread_t threads[_options.threads];
     struct thread_data threadData[_options.threads];
@@ -91,6 +93,7 @@ void MasterlessAgent::_run(
     // Fill thread structs.
     for (int t = 0; t < _options.threads; t++) {
       threadData[t].options = &_options;
+      threadData[t].id = t;
 
       if (t == 0) threadData[t].master = true;
       else threadData[t].master = false;

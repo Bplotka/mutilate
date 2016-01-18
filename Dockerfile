@@ -1,6 +1,6 @@
 FROM ubuntu
 
-RUN apt-get update &&  apt-get install -qy scons libevent-dev gengetopt libzmq-dev git g++
+RUN apt-get update && apt-get install -qy scons libevent-dev gengetopt libzmq-dev git g++
 RUN git clone https://github.com/Bplotka/mutilate.git
 
 WORKDIR mutilate

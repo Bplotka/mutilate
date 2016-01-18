@@ -34,6 +34,7 @@ struct thread_data {
 #ifdef HAVE_LIBZMQ
   zmq::socket_t *socket;
 #endif
+  int id;
 };
 
 class ConnectionStats;
