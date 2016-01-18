@@ -10,8 +10,6 @@
 #include <unistd.h>
 
 #include <queue>
-#include <string>
-#include <vector>
 
 #include <event2/buffer.h>
 #include <event2/bufferevent.h>
@@ -31,12 +29,15 @@
 #ifndef HAVE_PTHREAD_BARRIER_INIT
 #include "barrier.h"
 #endif
-#include "cmdline.h"
-#include "Connection.h"
-#include "ConnectionOptions.h"
 #include "log.h"
 #include "mutilate.h"
 #include "util.h"
+#include "connection/Connection.h"
+#include "ConnectionStats.h"
+
+// NOTE(bplotka): Including masterless code.
+#include "agent/masterless.hpp"
+#include "ConnectionOptions.h"
 
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 
@@ -44,24 +45,14 @@ using namespace std;
 
 gengetopt_args_info args;
 char random_char[2 * 1024 * 1024];  // Buffer used to generate random values.
+pthread_barrier_t barrier;
 
 #ifdef HAVE_LIBZMQ
 vector<zmq::socket_t*> agent_sockets;
 zmq::context_t context(1);
 #endif
 
-struct thread_data {
-  const vector<string> *servers;
-  options_t *options;
-  bool master;  // Thread #0, not to be confused with agent master.
-#ifdef HAVE_LIBZMQ
-  zmq::socket_t *socket;
-#endif
-};
-
 // struct evdns_base *evdns;
-
-pthread_barrier_t barrier;
 
 double boot_time;
 
@@ -74,12 +65,6 @@ void go(const vector<string> &servers, options_t &options,
 #endif
 );
 
-void do_mutilate(const vector<string> &servers, options_t &options,
-                 ConnectionStats &stats, bool master = true
-#ifdef HAVE_LIBZMQ
-, zmq::socket_t* socket = NULL
-#endif
-);
 void args_to_options(options_t* options);
 void* thread_main(void *arg);
 
@@ -449,8 +434,14 @@ int main(int argc, char **argv) {
 
   //  if ((evdns = evdns_base_new(base, 1)) == 0) DIE("evdns");
 
+  options_t options;
+  args_to_options(&options);
+
 #ifdef HAVE_LIBZMQ
-  if (args.agentmode_given) {
+  if (args.masterless_agentmode_given) {
+    MasterlessAgent().run(args, options);
+    return 0;
+  } else if (args.agentmode_given) {
     agent();
     return 0;
   } else if (args.agent_given) {
@@ -463,9 +454,6 @@ int main(int argc, char **argv) {
     }
   }
 #endif
-
-  options_t options;
-  args_to_options(&options);
 
   pthread_barrier_init(&barrier, NULL, options.threads);
 
@@ -612,7 +600,7 @@ int main(int argc, char **argv) {
            (double) stats.tx_bytes / 1024 / 1024 / (stats.stop - stats.start));
 
     if (args.save_given) {
-      printf("Saving latency samples to %s.\n", args.save_arg);
+      printf("Saving latency samples to %s.\n", args);
 
       FILE *file;
       if ((file = fopen(args.save_arg, "w")) == NULL)
@@ -755,7 +743,7 @@ void* thread_main(void *arg) {
 #ifdef HAVE_LIBZMQ
 , td->socket
 #endif
-);
+  );
 
   return cs;
 }
@@ -765,7 +753,7 @@ void do_mutilate(const vector<string>& servers, options_t& options,
 #ifdef HAVE_LIBZMQ
 , zmq::socket_t* socket
 #endif
-) {
+                  , int thread_id) {
   int loop_flag =
     (options.blocking || args.blocking_given) ? EVLOOP_ONCE : EVLOOP_NONBLOCK;
 
@@ -819,8 +807,8 @@ void do_mutilate(const vector<string>& servers, options_t& options,
 
     for (int c = 0; c < conns; c++) {
       Connection* conn = new Connection(base, evdns, hostname, port, options,
-                                        args.agentmode_given ? false :
-                                        true);
+                                        args.agentmode_given == 0);
+      V("Thread %d stared connection %d to %s", thread_id, c, hostname.c_str());
       connections.push_back(conn);
       if (c == 0) server_lead.push_back(conn);
     }
@@ -889,6 +877,11 @@ void do_mutilate(const vector<string>& servers, options_t& options,
       if (master) V("Synchronized.");
     }
 #endif
+    if (args.masterless_agentmode_given) {
+      // Sync threads.
+      pthread_barrier_wait(&barrier);
+      if (master) V("Synchronized.");
+    }
 
     int old_time = options.time;
     //    options.time = 1;
@@ -951,6 +944,7 @@ void do_mutilate(const vector<string>& servers, options_t& options,
     if (master) V("Warmup stop.");
   }
 
+  V("Synchronizing");
 
   // FIXME: Synchronize start_time here across threads/nodes.
   pthread_barrier_wait(&barrier);
@@ -974,6 +968,11 @@ void do_mutilate(const vector<string>& servers, options_t& options,
     if (master) V("Synchronized.");
   }
 #endif
+  if (args.masterless_agentmode_given) {
+    // Sync threads.
+    pthread_barrier_wait(&barrier);
+    if (master) V("Synchronized.");
+  }
 
   if (master && !args.scan_given && !args.search_given)
     V("started at %f", get_time());
@@ -985,7 +984,6 @@ void do_mutilate(const vector<string>& servers, options_t& options,
   }
 
   //  V("Start = %f", start);
-
   // Main event loop.
   while (1) {
     event_base_loop(base, loop_flag);
@@ -1090,6 +1088,12 @@ void args_to_options(options_t* options) {
   options->oob_thread = false;
   options->skip = args.skip_given;
   options->moderate = args.moderate_given;
+
+  options->sin_period = args.sin_arg;
+  if (args.push_lat_influx_given)
+    options->lat_to_influx = std::string(args.push_lat_influx_arg);
+  else
+    options->lat_to_influx = "";
 }
 
 void init_random_stuff() {

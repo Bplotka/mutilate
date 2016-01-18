@@ -10,7 +10,7 @@
 #include "config.h"
 
 #include "Protocol.h"
-#include "Connection.h"
+#include "connection/Connection.h"
 #include "distributions.h"
 #include "Generator.h"
 #include "mutilate.h"
