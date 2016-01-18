@@ -32,11 +32,12 @@
 #include "log.h"
 #include "mutilate.h"
 #include "util.h"
-#include "Connection.h"
+#include "connection/Connection.h"
 #include "ConnectionStats.h"
 
 // NOTE(bplotka): Including masterless code.
 #include "agent/masterless.hpp"
+#include "ConnectionOptions.h"
 
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 
@@ -65,12 +66,6 @@ void go(const vector<string> &servers, options_t &options,
 #endif
 );
 
-void do_mutilate(const vector<string> &servers, options_t &options,
-                 ConnectionStats &stats, bool master = true
-#ifdef HAVE_LIBZMQ
-, zmq::socket_t* socket = NULL
-#endif
-);
 void args_to_options(options_t* options);
 void* thread_main(void *arg);
 
@@ -749,7 +744,7 @@ void* thread_main(void *arg) {
 #ifdef HAVE_LIBZMQ
 , td->socket
 #endif
-);
+  );
 
   return cs;
 }
@@ -759,7 +754,7 @@ void do_mutilate(const vector<string>& servers, options_t& options,
 #ifdef HAVE_LIBZMQ
 , zmq::socket_t* socket
 #endif
-) {
+                  , int thread_id) {
   int loop_flag =
     (options.blocking || args.blocking_given) ? EVLOOP_ONCE : EVLOOP_NONBLOCK;
 
@@ -813,13 +808,13 @@ void do_mutilate(const vector<string>& servers, options_t& options,
 
     for (int c = 0; c < conns; c++) {
       Connection* conn = new Connection(base, evdns, hostname, port, options,
-                                        args.agentmode_given ? false :
-                                        true);
+                                        args.agentmode_given == 0);
+      V("Thread %d stared connection %d to %s", thread_id, c, hostname.c_str());
       connections.push_back(conn);
       if (c == 0) server_lead.push_back(conn);
     }
   }
-
+  V("debug1");
   // Wait for all Connections to become IDLE.
   while (1) {
     // FIXME: If all connections become ready before event_base_loop
@@ -833,7 +828,7 @@ void do_mutilate(const vector<string>& servers, options_t& options,
     if (restart) continue;
     else break;
   }
-
+  V("debug2");
   // Load database on lead connection for each server.
   if (!options.noload) {
     V("Loading database.");
@@ -949,11 +944,10 @@ void do_mutilate(const vector<string>& servers, options_t& options,
 
     if (master) V("Warmup stop.");
   }
-
-
+  V("debug3");
   // FIXME: Synchronize start_time here across threads/nodes.
   pthread_barrier_wait(&barrier);
-
+  V("debug4");
   if (master && args.wait_given) {
     if (get_time() < boot_time + args.wait_arg) {
       double t = (boot_time + args.wait_arg)-get_time();
@@ -973,13 +967,14 @@ void do_mutilate(const vector<string>& servers, options_t& options,
     if (master) V("Synchronized.");
   }
 #endif
-
+V("debug5");
   if (args.masterless_agentmode_given) {
     // Sync threads.
     pthread_barrier_wait(&barrier);
     if (master) V("Synchronized.");
   }
 
+V("debug6");
   if (master && !args.scan_given && !args.search_given)
     V("started at %f", get_time());
 
@@ -990,7 +985,7 @@ void do_mutilate(const vector<string>& servers, options_t& options,
   }
 
   //  V("Start = %f", start);
-
+  V("debug7");
   // Main event loop.
   while (1) {
     event_base_loop(base, loop_flag);
@@ -1095,6 +1090,12 @@ void args_to_options(options_t* options) {
   options->oob_thread = false;
   options->skip = args.skip_given;
   options->moderate = args.moderate_given;
+
+  options->sin_period = args.sin_arg;
+  if (args.push_lat_influx_given)
+    options->lat_to_influx = std::string(args.push_lat_influx_arg);
+  else
+    options->lat_to_influx = "";
 }
 
 void init_random_stuff() {

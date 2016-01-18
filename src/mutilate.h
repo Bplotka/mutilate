@@ -44,6 +44,6 @@ void do_mutilate(const vector<string>& servers, options_t& options,
 #ifdef HAVE_LIBZMQ
 , zmq::socket_t* socket
 #endif
-);
+  , int thread_id = 0);
 
 #endif // MUTILATE_H

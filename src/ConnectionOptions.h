@@ -1,6 +1,8 @@
 #ifndef CONNECTIONOPTIONS_H
 #define CONNECTIONOPTIONS_H
 
+#include <string>
+
 #include "distributions.h"
 
 typedef struct {
@@ -42,6 +44,9 @@ typedef struct {
   bool oob_thread;
 
   bool moderate;
+
+  std::string lat_to_influx;
+  int sin_period;
 } options_t;
 
 #endif // CONNECTIONOPTIONS_H

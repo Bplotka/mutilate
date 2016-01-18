@@ -10,15 +10,15 @@
 #include <event2/event.h>
 #include <event2/util.h>
 
-#include "AdaptiveSampler.h"
-#include "cmdline.h"
-#include "ConnectionOptions.h"
-#include "ConnectionStats.h"
-#include "Generator.h"
-#include "Operation.h"
-#include "util.h"
+#include "../AdaptiveSampler.h"
+#include "../cmdline.h"
+#include "../ConnectionOptions.h"
+#include "../ConnectionStats.h"
+#include "../Generator.h"
+#include "../Operation.h"
+#include "../util.h"
 
-#include "Protocol.h"
+#include "../Protocol.h"
 
 using namespace std;
 

@@ -53,6 +53,9 @@ void MasterlessAgent::run(gengetopt_args_info _args, options_t _options) {
 
     V("Finished loop");
 
+    // Debug:
+    return;
+
 //    V("Local QPS = %.1f (%d / %.1fs)",
 //      total / (stats.stop - stats.start),
 //      total, stats.stop - stats.start);
@@ -65,16 +68,14 @@ void* _mainThread(void *arg) {
 
   ConnectionStats *connectionStats = new ConnectionStats();
 
-  std::string msg = "Thread: " + std::to_string(threadData->id) +
-                    " starting mutilate";
-  V(msg.c_str());
+  V("Thread %d: starting mutilate", threadData->id);
   // Use global func from mutilate.cc (!)
   do_mutilate(*threadData->servers, *threadData->options,
               *connectionStats, threadData->master
 #ifdef HAVE_LIBZMQ
   , NULL
 #endif
-   );
+    , threadData->id);
 
   return connectionStats;
 }

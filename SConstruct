@@ -13,7 +13,7 @@ if sys.platform == 'darwin':
     env['CC']  = 'clang'
     env['CXX'] = 'clang++'
 
-conf = env.Configure(config_h = "config.h")
+conf = env.Configure(config_h = "src/config.h")
 conf.Define("__STDC_FORMAT_MACROS")
 if not conf.CheckCXX():
     print "A compiler with C++11 support is required."
@@ -40,14 +40,16 @@ env = conf.Finish()
 env.Append(CFLAGS = ' -O3 -Wall -g')
 env.Append(CPPFLAGS = ' -O3 -Wall -g')
 
-env.Command(['cmdline.cc', 'cmdline.h'], 'cmdline.ggo', 'gengetopt < $SOURCE')
+env.Command(['src/cmdline.cc', 'src/cmdline.h'], 'src/cmdline.ggo',
+'gengetopt --output-dir=./src/ < $SOURCE')
 
-src = Split("""mutilate.cc cmdline.cc log.cc distributions.cc util.cc
-               Connection.cc Protocol.cc Generator.cc agent/masterless.cpp""")
+src = Split("""src/mutilate.cc src/cmdline.cc src/log.cc src/distributions.cc
+	       src/util.cc src/connection/Connection.cc src/Protocol.cc
+	       src/Generator.cc src/agent/masterless.cpp""")
 
 if not env['HAVE_POSIX_BARRIER']: # USE_POSIX_BARRIER:
-    src += ['barrier.cc']
+    src += ['src/barrier.cc']
 
 env.Program(target='mutilate', source=src)
-env.Program(target='gtest', source=['TestGenerator.cc', 'log.cc', 'util.cc',
-                                    'Generator.cc'])
+env.Program(target='gtest', source=['src/TestGenerator.cc', 'src/log.cc',
+				    'src/util.cc', 'src/Generator.cc'])

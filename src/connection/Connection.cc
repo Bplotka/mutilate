@@ -7,14 +7,14 @@
 #include <event2/thread.h>
 #include <event2/util.h>
 
-#include "config.h"
+#include "../config.h"
 
 #include "Connection.h"
-#include "distributions.h"
-#include "Generator.h"
-#include "mutilate.h"
-#include "binary_protocol.h"
-#include "util.h"
+#include "../distributions.h"
+#include "../Generator.h"
+#include "../mutilate.h"
+#include "../binary_protocol.h"
+#include "../util.h"
 
 /**
  * Create a new connection to a server endpoint.
