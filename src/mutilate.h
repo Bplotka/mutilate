@@ -25,6 +25,8 @@ using std::vector;
 extern char random_char[];
 extern gengetopt_args_info args;
 
+extern pthread_barrier_t barrier;
+
 string name_to_ipaddr(string host);
 
 struct thread_data {

@@ -25,7 +25,7 @@ private:
   void _run(const vector<string>& _servers, gengetopt_args_info _args,
             options_t& _options, ConnectionStats& _stats);
 
-  pthread_barrier_t barrier;
+  //pthread_barrier_t barrier;
 };
 
 #endif //MUTILATE_MASTERLESS_HPP

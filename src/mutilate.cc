@@ -45,6 +45,7 @@ using namespace std;
 
 gengetopt_args_info args;
 char random_char[2 * 1024 * 1024];  // Buffer used to generate random values.
+pthread_barrier_t barrier;
 
 #ifdef HAVE_LIBZMQ
 vector<zmq::socket_t*> agent_sockets;
@@ -52,8 +53,6 @@ zmq::context_t context(1);
 #endif
 
 // struct evdns_base *evdns;
-
-pthread_barrier_t barrier;
 
 double boot_time;
 
@@ -814,7 +813,7 @@ void do_mutilate(const vector<string>& servers, options_t& options,
       if (c == 0) server_lead.push_back(conn);
     }
   }
-  V("debug1");
+
   // Wait for all Connections to become IDLE.
   while (1) {
     // FIXME: If all connections become ready before event_base_loop
@@ -828,7 +827,7 @@ void do_mutilate(const vector<string>& servers, options_t& options,
     if (restart) continue;
     else break;
   }
-  V("debug2");
+
   // Load database on lead connection for each server.
   if (!options.noload) {
     V("Loading database.");
@@ -944,9 +943,11 @@ void do_mutilate(const vector<string>& servers, options_t& options,
 
     if (master) V("Warmup stop.");
   }
-  V("debug3");
+
+  V("debug --before barrier!");
   // FIXME: Synchronize start_time here across threads/nodes.
   pthread_barrier_wait(&barrier);
+
   V("debug4");
   if (master && args.wait_given) {
     if (get_time() < boot_time + args.wait_arg) {
