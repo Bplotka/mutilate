@@ -10,7 +10,7 @@
       "type": "DOCKER",
       "volumes": []
   },
-  "cmd": "./mutilate -v -s <memcached host> -M -T 72 -B -c 4 -t 600 -q 0",
+  "cmd": "./mutilate -v -s <memcached host> -M -T 10 -B -c 1 -t 600 --noload",
   "cpus": 10,
   "mem": 8096,
   "instances": 0,

@@ -944,11 +944,11 @@ void do_mutilate(const vector<string>& servers, options_t& options,
     if (master) V("Warmup stop.");
   }
 
-  V("debug --before barrier!");
+  V("Synchronizing");
+
   // FIXME: Synchronize start_time here across threads/nodes.
   pthread_barrier_wait(&barrier);
 
-  V("debug4");
   if (master && args.wait_given) {
     if (get_time() < boot_time + args.wait_arg) {
       double t = (boot_time + args.wait_arg)-get_time();
@@ -968,14 +968,12 @@ void do_mutilate(const vector<string>& servers, options_t& options,
     if (master) V("Synchronized.");
   }
 #endif
-V("debug5");
   if (args.masterless_agentmode_given) {
     // Sync threads.
     pthread_barrier_wait(&barrier);
     if (master) V("Synchronized.");
   }
 
-V("debug6");
   if (master && !args.scan_given && !args.search_given)
     V("started at %f", get_time());
 
@@ -986,7 +984,6 @@ V("debug6");
   }
 
   //  V("Start = %f", start);
-  V("debug7");
   // Main event loop.
   while (1) {
     event_base_loop(base, loop_flag);
